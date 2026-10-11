@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meteo</title>
+<style>
+  :root {
+    --bg: #eef3fa; --card: #ffffff; --text: #1b2430; --muted: #6b7788;
+    --accent: #2f7de1; --border: #dde5f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1520; --card: #182130; --text: #e8eef7; --muted: #8b9ab0; --accent: #5aa2ff; --border: #263349; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; }
+  .app { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 18px; }
+  .search { display: flex; gap: 8px; position: relative; }
+  .search input { flex: 1; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; }
+  .search button { padding: 0 14px; border-radius: 12px; border: none; background: var(--accent); color: #fff; font-size: 18px; cursor: pointer; }
+  .suggestions { position: absolute; top: 52px; left: 0; right: 56px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; z-index: 10; }
+  .suggestions div { padding: 11px 14px; cursor: pointer; }
+  .suggestions div:hover { background: var(--bg); }
+  .suggestions small { color: var(--muted); }
+  .current { text-align: center; }
+  .current .city { font-size: 22px; font-weight: 600; }
+  .current .icon { font-size: 72px; line-height: 1.2; }
+  .current .temp { font-size: 56px; font-weight: 300; }
+  .current .desc { color: var(--muted); margin-top: 2px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+  .stat { background: var(--bg); border-radius: 12px; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 16px; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 12px; }
+  .hourly { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 4px; }
+  .hour { text-align: center; min-width: 52px; font-size: 14px; }
+  .hour .i { font-size: 24px; margin: 4px 0; }
+  .day { display: grid; grid-template-columns: 1.2fr 0.5fr 1fr 1fr; align-items: center; padding: 9px 0; border-top: 1px solid var(--border); gap: 6px; }
+  .day:first-of-type { border-top: none; }
+  .day .min { color: var(--muted); text-align: right; }
+  .day .max { text-align: right; font-weight: 600; }
+  .status { text-align: center; color: var(--muted); padding: 30px 0; }
+  .error { color: #d64545; text-align: center; }
+  .welcome { text-align: center; padding: 28px 8px 8px; }
+  .welcome svg { width: 112px; height: 112px; filter: drop-shadow(0 8px 18px rgba(34,96,216,.35)); }
+  .welcome h1 { font-size: 30px; font-weight: 700; margin-top: 18px; }
+  .welcome p { color: var(--muted); margin-top: 8px; line-height: 1.45; }
+  .welcome .primary { margin-top: 22px; width: 100%; padding: 14px; border: none; border-radius: 14px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .welcome .or { margin: 22px 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chips button { padding: 9px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 14px; cursor: pointer; }
+  .chips button:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="search">
+    <input id="q" type="text" placeholder="Cerca una città…" autocomplete="off">
+    <button id="geo" title="Usa la mia posizione">📍</button>
+    <div id="sugg" class="suggestions" hidden></div>
+  </div>
+  <div id="out">
+    <div class="welcome">
+      <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="wbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4aa3ff"/><stop offset="1" stop-color="#2260d8"/></linearGradient>
+          <radialGradient id="wsun" cx="0.4" cy="0.35" r="0.8"><stop offset="0" stop-color="#ffe680"/><stop offset="1" stop-color="#ffb11f"/></radialGradient>
+          <linearGradient id="wcloud" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#d6e4f7"/></linearGradient>
+        </defs>
+        <rect width="512" height="512" rx="112" fill="url(#wbg)"/>
+        <g stroke="#ffd45c" stroke-width="16" stroke-linecap="round">
+          <line x1="318" y1="78" x2="318" y2="106"/><line x1="388" y1="107" x2="368" y2="127"/><line x1="417" y1="177" x2="389" y2="177"/>
+          <line x1="248" y1="107" x2="268" y2="127"/><line x1="219" y1="177" x2="247" y2="177"/>
+        </g>
+        <circle cx="318" cy="177" r="62" fill="url(#wsun)"/>
+        <path fill="url(#wcloud)" d="M150 400 a74 74 0 0 1 -6 -147 a104 104 0 0 1 196 -20 a80 80 0 0 1 24 167 z"/>
+      </svg>
+      <h1>Benvenuto</h1>
+      <p>Previsioni meteo precise per oggi,<br>le prossime ore e i prossimi 7 giorni.</p>
+      <button class="primary" id="welcomeGeo">📍 Usa la mia posizione</button>
+      <div class="or">oppure scegli una città</div>
+      <div class="chips">
+        <button data-lat="41.9028" data-lon="12.4964" data-name="Roma, IT">Roma</button>
+        <button data-lat="45.4642" data-lon="9.1900" data-name="Milano, IT">Milano</button>
+        <button data-lat="40.8518" data-lon="14.2681" data-name="Napoli, IT">Napoli</button>
+        <button data-lat="45.0703" data-lon="7.6869" data-name="Torino, IT">Torino</button>
+        <button data-lat="43.7696" data-lon="11.2558" data-name="Firenze, IT">Firenze</button>
+        <button data-lat="38.1157" data-lon="13.3615" data-name="Palermo, IT">Palermo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Codici meteo WMO -> descrizione e icona
+const WMO = {
+  0: ["Sereno", "☀️"], 1: ["Prevalentemente sereno", "🌤️"], 2: ["Parzialmente nuvoloso", "⛅"], 3: ["Coperto", "☁️"],
+  45: ["Nebbia", "🌫️"], 48: ["Nebbia con brina", "🌫️"],
+  51: ["Pioviggine leggera", "🌦️"], 53: ["Pioviggine", "🌦️"], 55: ["Pioviggine intensa", "🌧️"],
+  61: ["Pioggia leggera", "🌧️"], 63: ["Pioggia", "🌧️"], 65: ["Pioggia forte", "🌧️"],
+  66: ["Pioggia gelata", "🌧️"], 67: ["Pioggia gelata forte", "🌧️"],
+  71: ["Neve leggera", "🌨️"], 73: ["Neve", "🌨️"], 75: ["Neve forte", "❄️"], 77: ["Granelli di neve", "❄️"],
+  80: ["Rovesci leggeri", "🌦️"], 81: ["Rovesci", "🌧️"], 82: ["Rovesci violenti", "⛈️"],
+  85: ["Rovesci di neve", "🌨️"], 86: ["Rovesci di neve forti", "❄️"],
+  95: ["Temporale", "⛈️"], 96: ["Temporale con grandine", "⛈️"], 99: ["Temporale con grandine forte", "⛈️"]
+};
+const wmo = c => WMO[c] || ["—", "❓"];
+
+const $ = id => document.getElementById(id);
+const out = $("out"), q = $("q"), sugg = $("sugg");
+
+async function searchCities(name) {
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=5&language=it&format=json`;
+  const r = await fetch(url);
+  const d = await r.json();
+  return d.results || [];
+}
+
+async function loadWeather(lat, lon, label) {
+  out.innerHTML = '<div class="status">Caricamento…</div>';
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      + `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code`
+      + `&hourly=temperature_2m,weather_code`
+      + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max`
+      + `&timezone=auto&forecast_days=7`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("Errore di rete");
+    render(await r.json(), label);
+  } catch (e) {
+    out.innerHTML = `<div class="status error">Impossibile caricare il meteo. Riprova.</div>`;
+  }
+}
+
+function render(d, label) {
+  const c = d.current, [desc, icon] = wmo(c.weather_code);
+  // prossime 24 ore a partire dall'ora corrente
+  const now = c.time.slice(0, 13);
+  let start = d.hourly.time.findIndex(t => t.startsWith(now));
+  if (start < 0) start = 0;
+  const hours = d.hourly.time.slice(start, start + 24).map((t, i) => {
+    const idx = start + i;
+    return `<div class="hour"><div>${t.slice(11, 16)}</div><div class="i">${wmo(d.hourly.weather_code[idx])[1]}</div><div>${Math.round(d.hourly.temperature_2m[idx])}°</div></div>`;
+  }).join("");
+  const days = d.daily.time.map((t, i) => {
+    const name = i === 0 ? "Oggi" : new Date(t).toLocaleDateString("it-IT", { weekday: "long" });
+    return `<div class="day"><span style="text-transform:capitalize">${name}</span><span>${wmo(d.daily.weather_code[i])[1]}</span>
+      <span class="min">${Math.round(d.daily.temperature_2m_min[i])}°</span><span class="max">${Math.round(d.daily.temperature_2m_max[i])}°</span></div>`;
+  }).join("");
+
+  out.innerHTML = `
+    <div class="card current">
+      <div class="city">${label}</div>
+      <div class="icon">${icon}</div>
+      <div class="temp">${Math.round(c.temperature_2m)}°C</div>
+      <div class="desc">${desc}</div>
+      <div class="stats">
+        <div class="stat"><b>${Math.round(c.apparent_temperature)}°</b><span>Percepita</span></div>
+        <div class="stat"><b>${c.relative_humidity_2m}%</b><span>Umidità</span></div>
+        <div class="stat"><b>${Math.round(c.wind_speed_10m)} km/h</b><span>Vento</span></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>Prossime 24 ore</h2><div class="hourly">${hours}</div></div>
+    <div class="card" style="margin-top:14px"><h2>Prossimi 7 giorni</h2>${days}</div>`;
+  try { localStorage.setItem("last", JSON.stringify({ lat: d.latitude, lon: d.longitude, label })); } catch {}
+}
+
+// Ricerca con suggerimenti
+let timer;
+q.addEventListener("input", () => {
+  clearTimeout(timer);
+  const v = q.value.trim();
+  if (v.length < 2) { sugg.hidden = true; return; }
+  timer = setTimeout(async () => {
+    const res = await searchCities(v);
+    sugg.innerHTML = res.map((c, i) =>
+      `<div data-i="${i}">${c.name} <small>${[c.admin1, c.country].filter(Boolean).join(", ")}</small></div>`).join("");
+    sugg.hidden = !res.length;
+    sugg.onclick = e => {
+      const el = e.target.closest("[data-i]"); if (!el) return;
+      const c = res[el.dataset.i];
+      q.value = ""; sugg.hidden = true;
+      loadWeather(c.latitude, c.longitude, `${c.name}, ${c.country_code}`);
+    };
+  }, 300);
+});
+q.addEventListener("keydown", async e => {
+  if (e.key !== "Enter") return;
+  const res = await searchCities(q.value.trim());
+  if (res[0]) { q.value = ""; sugg.hidden = true; loadWeather(res[0].latitude, res[0].longitude, `${res[0].name}, ${res[0].country_code}`); }
+});
+
+// Geolocalizzazione
+function useMyLocation() {
+  if (!navigator.geolocation) return alert("Geolocalizzazione non supportata.");
+  navigator.geolocation.getCurrentPosition(
+    p => loadWeather(p.coords.latitude, p.coords.longitude, "La tua posizione"),
+    () => alert("Permesso di localizzazione negato.")
+  );
+}
+$("geo").addEventListener("click", useMyLocation);
+
+// Schermata iniziale: pulsante posizione e città rapide
+const wg = $("welcomeGeo");
+if (wg) wg.addEventListener("click", useMyLocation);
+out.addEventListener("click", e => {
+  const b = e.target.closest(".chips button");
+  if (b) loadWeather(b.dataset.lat, b.dataset.lon, b.dataset.name);
+});
+
+// Ripristina l'ultima città
+try {
+  const last = JSON.parse(localStorage.getItem("last"));
+  if (last) loadWeather(last.lat, last.lon, last.label);
+} catch {}
+</script>
+</body>
+</html>
