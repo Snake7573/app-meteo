@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4aa3ff"/>
+      <stop offset="1" stop-color="#2260d8"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.4" cy="0.35" r="0.8">
+      <stop offset="0" stop-color="#ffe680"/>
+      <stop offset="1" stop-color="#ffb11f"/>
+    </radialGradient>
+    <linearGradient id="cloud" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d6e4f7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- sfondo -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- raggi del sole -->
+  <g stroke="#ffd45c" stroke-width="16" stroke-linecap="round">
+    <line x1="318" y1="78"  x2="318" y2="106"/>
+    <line x1="388" y1="107" x2="368" y2="127"/>
+    <line x1="417" y1="177" x2="389" y2="177"/>
+    <line x1="248" y1="107" x2="268" y2="127"/>
+    <line x1="219" y1="177" x2="247" y2="177"/>
+  </g>
+
+  <!-- sole -->
+  <circle cx="318" cy="177" r="62" fill="url(#sun)"/>
+
+  <!-- nuvola -->
+  <path fill="url(#cloud)" d="M150 400
+    a74 74 0 0 1 -6 -147
+    a104 104 0 0 1 196 -20
+    a80 80 0 0 1 24 167 z"/>
+</svg>
